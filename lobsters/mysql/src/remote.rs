@@ -135,9 +135,9 @@ fn main() {
                      --deployment trawler \
                      --durability persistent \
                      --no-reuse \
-                     --persistence-threads 2 \
+                     --persistence-threads 4 \
                      --address {} \
-                     --readers 2 -w 4 \
+                     --readers 16 -w 4 \
                      --shards 0 \
                      &> souplet.log &'",
                     server_ip,
@@ -217,9 +217,9 @@ fn main() {
                      --deployment trawler \
                      --durability {} \
                      --no-reuse \
-                     --persistence-threads 2 \
+                     --persistence-threads 4 \
                      --address {} \
-                     --readers 2 -w 4 \
+                     --readers 16 -w 4 \
                      --shards 0 \
                      &> souplet.log &'",
                     durability, server_ip,
