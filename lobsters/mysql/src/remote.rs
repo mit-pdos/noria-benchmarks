@@ -116,6 +116,7 @@ fn main() {
 
     for backend in &backends {
         if !survived_last[backend] {
+            eprintln!("!!> skipping {} as it fell behind", backend);
             continue;
         }
 
