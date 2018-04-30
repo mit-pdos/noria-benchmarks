@@ -125,6 +125,19 @@ fn main() {
                 Local::now().time().format("%H:%M:%S")
             );
 
+            server
+                .cmd(
+                    "distributary/target/release/zk-util \
+                     --clean --deployment trawler",
+                )
+                .map(|out| {
+                    let out = out.trim_right();
+                    if !out.is_empty() {
+                        eprintln!(" -> wiped soup state...\n{}", out);
+                    }
+                })
+                .unwrap();
+
             // Start the server for priming:
             server
                 .cmd(&format!(
