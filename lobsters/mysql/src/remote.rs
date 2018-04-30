@@ -84,7 +84,7 @@ fn main() {
 
     let scales: Vec<_> = args.values_of("SCALE")
         .map(|it| it.map(|s| s.parse().unwrap()).collect())
-        .unwrap_or(vec![1, 50, 100, 150, 200, 250, 350, 400, 450, 500]);
+        .unwrap_or(vec![50, 100, 150, 200, 250, 350, 400, 450, 500]);
 
     let mut load = if args.is_present("SCALE") {
         OpenOptions::new()
@@ -281,28 +281,25 @@ fn main() {
                 }
             }
 
-            // eprintln!(" -> warming at {}", Local::now().time().format("%H:%M:%S"));
-            // trawler
-            //     .ssh
-            //     .as_mut()
-            //     .unwrap()
-            //     .cmd(&format!(
-            //         "env RUST_BACKTRACE=1 \
-            //          {}/lobsters/mysql/target/release/trawler-mysql \
-            //          --reqscale 3000 \
-            //          --warmup 120 \
-            //          --runtime 0 \
-            //          --issuers 24 \
-            //          \"mysql://lobsters:$(cat ~/mysql.pass)@{}/lobsters\"",
-            //          \"mysql://lobsters@{}/lobsters\"",
-            //         ip
-            //     ))
-            //     .map(|out| {
-            //         let out = out.trim_right();
-            //         if !out.is_empty() {
-            //             eprintln!(" -> warming finished...\n{}", out);
-            //         }
-            //     })?;
+            eprintln!(" -> warming at {}", Local::now().time().format("%H:%M:%S"));
+            trawler
+                .cmd(&format!(
+                    "cd lobsters && env RUST_BACKTRACE=1 \
+                     /scratch/soup/target/release/trawler-mysql \
+                     --reqscale 300 \
+                     --warmup 60 \
+                     --runtime 0 \
+                     --issuers 24 \
+                     \"{}\"",
+                    mysql_url,
+                ))
+                .map(|out| {
+                    let out = out.trim_right();
+                    if !out.is_empty() {
+                        eprintln!(" -> warming finished...\n{}", out);
+                    }
+                })
+                .unwrap();
 
             eprintln!(" -> started at {}", Local::now().time().format("%H:%M:%S"));
 
