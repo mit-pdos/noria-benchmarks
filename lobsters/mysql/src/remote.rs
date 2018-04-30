@@ -129,7 +129,7 @@ fn main() {
             // Start the server for priming:
             server
                 .cmd(&format!(
-                    "cd lobsters && bash -c 'nohup \
+                    "rm -rf primed_lobsters/* && cd primed_lobsters && bash -c 'nohup \
                      env RUST_BACKTRACE=1 \
                      ../distributary/target/release/souplet \
                      --deployment trawler \
@@ -149,7 +149,7 @@ fn main() {
             // Then run priming into the specified folder:
             trawler
                 .cmd(&format!(
-                    "rm -rf primed_lobsters/* && cd primed_lobsters && env RUST_BACKTRACE=1 \
+                    "env RUST_BACKTRACE=1 \
                      /scratch/soup/target/release/trawler-mysql \
                      --warmup 0 \
                      --runtime 0 \
