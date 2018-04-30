@@ -1,7 +1,6 @@
 extern crate chrono;
 extern crate clap;
 extern crate failure;
-extern crate mysql;
 extern crate rusoto_core;
 extern crate rusoto_sts;
 extern crate tsunami;
@@ -291,10 +290,7 @@ fn main() {
                         .unwrap();
                 }
                 Backend::RockySoup => {
-                    // NOTE: This requires an open SSH tunnel on port 3307 to server_addr.
-                    // Could probably change it to just use mysql -e or something to avoid that.
                     eprintln!(" -> piping in schema");
-                    let mut conn = mysql::Conn::new(mysql_url).unwrap();
                     let mut current_q = String::new();
                     for q in include_str!("../db-schema.sql").lines() {
                         if !q.starts_with("CREATE TABLE") {
@@ -305,7 +301,9 @@ fn main() {
                         }
                         current_q.push_str(q);
                         if current_q.ends_with(';') {
-                            conn.query(&current_q).unwrap();
+                            trawler
+                                .cmd(&format!("mysql -h 127.0.0.1 -P 3307 -e '{}'", current_q))
+                                .unwrap();
                             current_q.clear();
                         }
                     }
