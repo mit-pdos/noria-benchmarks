@@ -273,22 +273,13 @@ fn main() {
                 }
                 Backend::RockySoup => {
                     eprintln!(" -> piping in schema");
-                    let mut current_q = String::new();
-                    for q in include_str!("../db-schema.sql").lines() {
-                        if !q.starts_with("CREATE TABLE") {
-                            continue;
-                        }
-                        if !current_q.is_empty() {
-                            current_q.push_str(" ");
-                        }
-                        current_q.push_str(q);
-                        if current_q.ends_with(';') {
-                            trawler
-                                .cmd(&format!("mysql -h 127.0.0.1 -P 3307 -e '{}'", current_q))
-                                .unwrap();
-                            current_q.clear();
-                        }
-                    }
+                    // TODO: Tried filtering through db-schema.sql, but for some reason it fails to
+                    // parse the query when piped in through mysql -e '{}' or echo '{}' | mysql
+                    // even though the same works when copy-pasted. Probably some weird encoding
+                    // bug.
+                    trawler
+                        .cmd("mysql -h 127.0.0.1 -P 3307 < soup-benchmarks/lobsters/mysql/create-schema.sql")
+                        .unwrap();
                 }
             }
 
