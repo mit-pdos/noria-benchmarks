@@ -273,12 +273,8 @@ fn main() {
                 }
                 Backend::RockySoup => {
                     eprintln!(" -> piping in schema");
-                    // TODO: Tried filtering through db-schema.sql, but for some reason it fails to
-                    // parse the query when piped in through mysql -e '{}' or echo '{}' | mysql
-                    // even though the same works when copy-pasted. Probably some weird encoding
-                    // bug.
                     trawler
-                        .cmd("mysql -h 127.0.0.1 -P 3307 < soup-benchmarks/lobsters/mysql/create-schema.sql")
+                        .cmd("mysql -h 127.0.0.1 -P 3307 < soup-benchmarks/lobsters/mysql/db-schema.sql")
                         .unwrap();
                 }
             }
