@@ -104,8 +104,6 @@ fn main() {
 
     // Local shim IP:
     let mysql_url = "mysql://lobsters@127.0.0.1:3307/lobsters";
-    let pool = mysql::Pool::new(mysql_url).unwrap();
-
     let server = Session::connect(username, server_addr, key_path).unwrap();
     let trawler = Session::connect(username, trawler_addr, key_path).unwrap();
     let backends = [Backend::Soup, Backend::RockySoup];
@@ -294,6 +292,7 @@ fn main() {
                 }
                 Backend::RockySoup => {
                     eprintln!(" -> piping in schema");
+                    let pool = mysql::Pool::new(mysql_url).unwrap();
                     let mut current_q = String::new();
                     for q in include_str!("../db-schema.sql").lines() {
                         if !q.starts_with("CREATE TABLE") {
