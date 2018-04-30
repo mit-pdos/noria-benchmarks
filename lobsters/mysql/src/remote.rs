@@ -122,21 +122,6 @@ fn main() {
             continue;
         }
 
-        server
-            .cmd(
-                "distributary/target/release/zk-util \
-                 --clean --deployment trawler",
-            )
-            .map(|out| {
-                let out = out.trim_right();
-                if !out.is_empty() {
-                    eprintln!(" -> wiped soup state...\n{}", out);
-                }
-            })
-            .unwrap();
-
-        eprintln!(" -> wiped possible ZK state");
-
         if *backend == Backend::RockySoup {
             eprintln!(
                 " -> priming rocksdb at {}",
@@ -210,6 +195,21 @@ fn main() {
             eprintln!(" -> killed existing servers");
             // Don't hit Soup listening timeout think
             thread::sleep(time::Duration::from_secs(10));
+
+            server
+                .cmd(
+                    "distributary/target/release/zk-util \
+                     --clean --deployment trawler",
+                )
+                .map(|out| {
+                    let out = out.trim_right();
+                    if !out.is_empty() {
+                        eprintln!(" -> wiped soup state...\n{}", out);
+                    }
+                })
+                .unwrap();
+
+            eprintln!(" -> wiped possible ZK state");
 
             if *backend == Backend::RockySoup {
                 // Copy over the pre-primed RocksDB data:
