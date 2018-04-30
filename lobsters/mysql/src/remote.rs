@@ -26,7 +26,7 @@ impl fmt::Display for Backend {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match *self {
             Backend::Soup => write!(f, "soup"),
-            Backend::RockySoup => write!(f, "rocksdb-soup"),
+            Backend::RockySoup => write!(f, "rocksdb_soup"),
         }
     }
 }
