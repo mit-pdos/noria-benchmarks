@@ -291,8 +291,10 @@ fn main() {
                         .unwrap();
                 }
                 Backend::RockySoup => {
+                    // NOTE: This requires an open SSH tunnel on port 3307 to server_addr.
+                    // Could probably change it to just use mysql -e or something to avoid that.
                     eprintln!(" -> piping in schema");
-                    let pool = mysql::Pool::new(mysql_url).unwrap();
+                    let mut conn = mysql::Conn::new(mysql_url).unwrap();
                     let mut current_q = String::new();
                     for q in include_str!("../db-schema.sql").lines() {
                         if !q.starts_with("CREATE TABLE") {
@@ -303,7 +305,7 @@ fn main() {
                         }
                         current_q.push_str(q);
                         if current_q.ends_with(';') {
-                            pool.prep_exec(&current_q, ()).unwrap();
+                            conn.query(&current_q).unwrap();
                             current_q.clear();
                         }
                     }
