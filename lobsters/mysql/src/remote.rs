@@ -276,6 +276,8 @@ fn main() {
                     trawler
                         .cmd("mysql -h 127.0.0.1 -P 3307 < soup-benchmarks/lobsters/mysql/db-schema.sql")
                         .unwrap();
+                    // give it some time
+                    thread::sleep(time::Duration::from_secs(5));
                 }
             }
 
