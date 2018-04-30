@@ -1,6 +1,7 @@
 extern crate chrono;
 extern crate clap;
 extern crate failure;
+extern crate mysql;
 extern crate rusoto_core;
 extern crate rusoto_sts;
 extern crate tsunami;
@@ -101,6 +102,10 @@ fn main() {
         f
     };
 
+    // Local shim IP:
+    let mysql_url = "mysql://lobsters@127.0.0.1:3307/lobsters";
+    let pool = mysql::Pool::new(mysql_url).unwrap();
+
     let server = Session::connect(username, server_addr, key_path).unwrap();
     let trawler = Session::connect(username, trawler_addr, key_path).unwrap();
     let backends = [Backend::Soup, Backend::RockySoup];
@@ -110,9 +115,6 @@ fn main() {
     trawler
         .cmd("bash -c 'echo 1 | sudo tee /proc/sys/net/ipv4/tcp_tw_reuse'")
         .unwrap();
-
-    // Local shim IP:
-    let ip = "127.0.0.1:3307";
 
     for backend in &backends {
         if !survived_last[backend] {
@@ -170,8 +172,8 @@ fn main() {
                      --runtime 0 \
                      --issuers 24 \
                      --prime \
-                     \"mysql://lobsters@{}/lobsters\"",
-                    ip
+                     \"{}\"",
+                    mysql_url
                 ))
                 .map(|out| {
                     let out = out.trim_right();
@@ -268,26 +270,45 @@ fn main() {
             thread::sleep(time::Duration::from_secs(5));
 
             // run priming
-            if *backend == Backend::Soup {
-                eprintln!(" -> priming at {}", Local::now().time().format("%H:%M:%S"));
-                trawler
-                    .cmd(&format!(
-                        "cd lobsters && env RUST_BACKTRACE=1 \
-                         /scratch/soup/target/release/trawler-mysql \
-                         --warmup 0 \
-                         --runtime 0 \
-                         --issuers 24 \
-                         --prime \
-                         \"mysql://lobsters@{}/lobsters\"",
-                        ip
-                    ))
-                    .map(|out| {
-                        let out = out.trim_right();
-                        if !out.is_empty() {
-                            eprintln!(" -> priming finished...\n{}", out);
+            match backend {
+                Backend::Soup => {
+                    eprintln!(" -> priming at {}", Local::now().time().format("%H:%M:%S"));
+                    trawler
+                        .cmd(&format!(
+                            "cd lobsters && env RUST_BACKTRACE=1 \
+                             /scratch/soup/target/release/trawler-mysql \
+                             --warmup 0 \
+                             --runtime 0 \
+                             --issuers 24 \
+                             --prime \
+                             \"{}\"",
+                            mysql_url
+                        ))
+                        .map(|out| {
+                            let out = out.trim_right();
+                            if !out.is_empty() {
+                                eprintln!(" -> priming finished...\n{}", out);
+                            }
+                        })
+                        .unwrap();
+                }
+                Backend::RockySoup => {
+                    eprintln!(" -> piping in schema");
+                    let mut current_q = String::new();
+                    for q in include_str!("../db-schema.sql").lines() {
+                        if !q.starts_with("CREATE TABLE") {
+                            continue;
                         }
-                    })
-                    .unwrap();
+                        if !current_q.is_empty() {
+                            current_q.push_str(" ");
+                        }
+                        current_q.push_str(q);
+                        if current_q.ends_with(';') {
+                            pool.prep_exec(&current_q, ()).unwrap();
+                            current_q.clear();
+                        }
+                    }
+                }
             }
 
             // eprintln!(" -> warming at {}", Local::now().time().format("%H:%M:%S"));
@@ -325,8 +346,8 @@ fn main() {
                      --warmup 20 \
                      --runtime 30 \
                      --issuers 24 \
-                     \"mysql://lobsters@{}/lobsters\"",
-                    scale, ip
+                     \"{}\"",
+                    scale, mysql_url
                 ))
                 .and_then(|out| Ok(output.write_all(&out[..]).unwrap()))
                 .unwrap();
