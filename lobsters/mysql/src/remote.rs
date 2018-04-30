@@ -82,15 +82,9 @@ fn main() {
     let server_addr: SocketAddr = args.value_of("server-address").unwrap().parse().unwrap();
     let trawler_addr: SocketAddr = args.value_of("trawler-address").unwrap().parse().unwrap();
 
-    let scales: Box<Iterator<Item = usize>> = args.values_of("SCALE")
-        .map(|it| Box::new(it.map(|s| s.parse().unwrap())) as Box<_>)
-        .unwrap_or(Box::new(
-            [
-                100, 200, 400, 800, 1000usize, 1250, 1500, 2000, 3000, 4000, 4500, 5000, 5500,
-                6000, 6500, 7000, 8000, 8500, 9000,
-            ].into_iter()
-                .map(|&s| s),
-        ) as Box<_>);
+    let scales: Vec<_> = args.values_of("SCALE")
+        .map(|it| it.map(|s| s.parse().unwrap()).collect())
+        .unwrap_or(vec![1, 50, 100, 150, 200, 250, 350, 400, 450, 500]);
 
     let mut load = if args.is_present("SCALE") {
         OpenOptions::new()
@@ -117,12 +111,77 @@ fn main() {
         .cmd("bash -c 'echo 1 | sudo tee /proc/sys/net/ipv4/tcp_tw_reuse'")
         .unwrap();
 
-    for scale in scales {
-        for backend in &backends {
-            if !survived_last[backend] {
-                continue;
-            }
+    // Local shim IP:
+    let ip = "127.0.0.1:3307";
 
+    for backend in &backends {
+        if !survived_last[backend] {
+            continue;
+        }
+
+        server
+            .cmd(
+                "distributary/target/release/zk-util \
+                 --clean --deployment trawler",
+            )
+            .map(|out| {
+                let out = out.trim_right();
+                if !out.is_empty() {
+                    eprintln!(" -> wiped soup state...\n{}", out);
+                }
+            })
+            .unwrap();
+
+        eprintln!(" -> wiped possible ZK state");
+
+        if *backend == Backend::RockySoup {
+            eprintln!(
+                " -> priming rocksdb at {}",
+                Local::now().time().format("%H:%M:%S")
+            );
+
+            // Start the server for priming:
+            server
+                .cmd(&format!(
+                    "cd lobsters && bash -c 'nohup \
+                     env RUST_BACKTRACE=1 \
+                     ../distributary/target/release/souplet \
+                     --deployment trawler \
+                     --durability persistent \
+                     --no-reuse \
+                     --persistence-threads 2 \
+                     --address {} \
+                     --readers 2 -w 4 \
+                     --shards 0 \
+                     &> souplet.log &'",
+                    server_ip,
+                ))
+                .unwrap();
+
+            thread::sleep(time::Duration::from_secs(5));
+
+            // Then run priming into the specified folder:
+            trawler
+                .cmd(&format!(
+                    "rm -rf primed_lobsters/* && cd primed_lobsters && env RUST_BACKTRACE=1 \
+                     /scratch/soup/target/release/trawler-mysql \
+                     --warmup 0 \
+                     --runtime 0 \
+                     --issuers 24 \
+                     --prime \
+                     \"mysql://lobsters@{}/lobsters\"",
+                    ip
+                ))
+                .map(|out| {
+                    let out = out.trim_right();
+                    if !out.is_empty() {
+                        eprintln!(" -> priming rocksdb finished...\n{}", out);
+                    }
+                })
+                .unwrap();
+        }
+
+        for scale in scales.iter() {
             eprintln!("==> benchmark {} w/ {}x load", backend, scale);
 
             // just to make totally sure
@@ -146,30 +205,15 @@ fn main() {
                 .unwrap();
 
             eprintln!(" -> killed existing servers");
-
-            // XXX: also delete log files if we later run with RocksDB?
-            server
-                .cmd(
-                    "distributary/target/release/zk-util \
-                     --clean --deployment trawler",
-                )
-                .map(|out| {
-                    let out = out.trim_right();
-                    if !out.is_empty() {
-                        eprintln!(" -> wiped soup state...\n{}", out);
-                    }
-                })
-                .unwrap();
-
-            eprintln!(" -> wiped possible ZK state");
-
             // Don't hit Soup listening timeout think
             thread::sleep(time::Duration::from_secs(10));
 
             if *backend == Backend::RockySoup {
                 // Copy over the pre-primed RocksDB data:
                 server
-                    .cmd(&format!("bash -c 'rm -rf lobsters/* && cp -R primed_lobsters/* lobsters'"))
+                    .cmd(&format!(
+                        "bash -c 'rm -rf lobsters/* && cp -R primed_lobsters/* lobsters'"
+                    ))
                     .unwrap();
 
                 eprintln!(" -> copied over rocksdb data");
@@ -221,7 +265,6 @@ fn main() {
 
             // give soup a chance to start
             thread::sleep(time::Duration::from_secs(5));
-            let ip = "127.0.0.1:3307";
 
             // run priming
             if *backend == Backend::Soup {
