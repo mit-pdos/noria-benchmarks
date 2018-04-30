@@ -144,6 +144,20 @@ fn main() {
                 ))
                 .unwrap();
 
+            trawler
+                .cmd(&format!(
+                    "cd lobsters && bash -c 'nohup \
+                     env RUST_BACKTRACE=1 \
+                     /scratch/soup/target/release/distributary-mysql \
+                     --deployment trawler \
+                     --no-sanitize --no-static-responses \
+                     -z {}:2181 \
+                     -p 3307 \
+                     &> shim.log &'",
+                    server_ip,
+                ))
+                .unwrap();
+
             thread::sleep(time::Duration::from_secs(5));
 
             // Then run priming into the specified folder:
@@ -165,6 +179,11 @@ fn main() {
                     }
                 })
                 .unwrap();
+
+            eprintln!(
+                " -> done priming rocksdb at {}",
+                Local::now().time().format("%H:%M:%S")
+            );
         }
 
         for scale in scales.iter() {
