@@ -130,13 +130,10 @@ fn main() {
                     "distributary/target/release/zk-util \
                      --clean --deployment trawler",
                 )
-                .map(|out| {
-                    let out = out.trim_right();
-                    if !out.is_empty() {
-                        eprintln!(" -> wiped soup state...\n{}", out);
-                    }
-                })
                 .unwrap();
+
+            eprintln!(" -> cleared zk state, starting server");
+            thread::sleep(time::Duration::from_secs(2));
 
             // Start the server for priming:
             server
@@ -157,6 +154,7 @@ fn main() {
                 .unwrap();
 
             thread::sleep(time::Duration::from_secs(5));
+            eprintln!(" -> finally priming");
 
             // Then run priming into the specified folder:
             trawler
