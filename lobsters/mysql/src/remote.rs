@@ -120,20 +120,11 @@ fn main() {
         }
 
         if *backend == Backend::RockySoup {
+            clear_state(&server, &trawler);
             eprintln!(
                 " -> priming rocksdb at {}",
                 Local::now().time().format("%H:%M:%S")
             );
-
-            server
-                .cmd(
-                    "distributary/target/release/zk-util \
-                     --clean --deployment trawler",
-                )
-                .unwrap();
-
-            eprintln!(" -> cleared zk state, starting server");
-            thread::sleep(time::Duration::from_secs(2));
 
             // Start the server for priming:
             server
@@ -154,7 +145,6 @@ fn main() {
                 .unwrap();
 
             thread::sleep(time::Duration::from_secs(5));
-            eprintln!(" -> finally priming");
 
             // Then run priming into the specified folder:
             trawler
@@ -179,45 +169,7 @@ fn main() {
 
         for scale in scales.iter() {
             eprintln!("==> benchmark {} w/ {}x load", backend, scale);
-
-            // just to make totally sure
-            server
-                .cmd("bash -c 'pkill -9 -f souplet 2>&1'")
-                .map(|out| {
-                    let out = out.trim_right();
-                    if !out.is_empty() {
-                        eprintln!(" -> force stopped soup...\n{}", out);
-                    }
-                })
-                .unwrap();
-            trawler
-                .cmd("bash -c 'pkill -9 -f distributary-mysql 2>&1'")
-                .map(|out| {
-                    let out = out.trim_right();
-                    if !out.is_empty() {
-                        eprintln!(" -> force stopped shim...\n{}", out);
-                    }
-                })
-                .unwrap();
-
-            eprintln!(" -> killed existing servers");
-            // Don't hit Soup listening timeout think
-            thread::sleep(time::Duration::from_secs(10));
-
-            server
-                .cmd(
-                    "distributary/target/release/zk-util \
-                     --clean --deployment trawler",
-                )
-                .map(|out| {
-                    let out = out.trim_right();
-                    if !out.is_empty() {
-                        eprintln!(" -> wiped soup state...\n{}", out);
-                    }
-                })
-                .unwrap();
-
-            eprintln!(" -> wiped possible ZK state");
+            clear_state(&server, &trawler);
 
             if *backend == Backend::RockySoup {
                 // Copy over the pre-primed RocksDB data:
@@ -458,4 +410,45 @@ fn main() {
             }
         }
     }
+}
+
+fn clear_state(server: &Session, trawler: &Session) {
+    server
+        .cmd("bash -c 'pkill -9 -f souplet 2>&1'")
+        .map(|out| {
+            let out = out.trim_right();
+            if !out.is_empty() {
+                eprintln!(" -> force stopped soup...\n{}", out);
+            }
+        })
+        .unwrap();
+
+    trawler
+        .cmd("bash -c 'pkill -9 -f distributary-mysql 2>&1'")
+        .map(|out| {
+            let out = out.trim_right();
+            if !out.is_empty() {
+                eprintln!(" -> force stopped shim...\n{}", out);
+            }
+        })
+        .unwrap();
+
+    eprintln!(" -> killed existing servers");
+
+    thread::sleep(time::Duration::from_secs(2));
+    server
+        .cmd(
+            "distributary/target/release/zk-util \
+             --clean --deployment trawler",
+        )
+        .map(|out| {
+            let out = out.trim_right();
+            if !out.is_empty() {
+                eprintln!(" -> wiped soup state...\n{}", out);
+            }
+        })
+        .unwrap();
+
+    // Don't hit Soup listening timeout think
+    thread::sleep(time::Duration::from_secs(10));
 }
