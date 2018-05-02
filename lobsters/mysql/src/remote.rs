@@ -7,7 +7,6 @@ extern crate tsunami;
 
 use chrono::prelude::*;
 use clap::{App, Arg};
-use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
 use std::io::BufReader;
@@ -153,7 +152,7 @@ fn main() {
                 .cmd(&format!(
                     "cd lobsters && bash -c 'nohup \
                      env RUST_BACKTRACE=1 \
-                     /scratch/soup/target/release/distributary-mysql \
+                     ../distributary-mysql/target/release/distributary-mysql \
                      --deployment trawler \
                      --no-sanitize --no-static-responses \
                      -z {}:2181 \
@@ -173,7 +172,7 @@ fn main() {
             trawler
                 .cmd(&format!(
                     "cd lobsters && env RUST_BACKTRACE=1 \
-                     /scratch/soup/target/release/trawler-mysql \
+                     ../soup-benchmarks/lobsters/mysql/target/release/trawler-mysql \
                      --warmup 0 \
                      --runtime 0 \
                      --issuers 24 \
@@ -193,7 +192,7 @@ fn main() {
             trawler
                 .cmd(&format!(
                     "cd lobsters && env RUST_BACKTRACE=1 \
-                     /scratch/soup/target/release/trawler-mysql \
+                     ../soup-benchmarks/lobsters/mysql/target/release/trawler-mysql \
                      --reqscale 3000 \
                      --warmup 120 \
                      --runtime 0 \
@@ -216,7 +215,7 @@ fn main() {
             trawler
                 .cmd_raw(&format!(
                     "cd lobsters && env RUST_BACKTRACE=1 \
-                     /scratch/soup/target/release/trawler-mysql \
+                     ../soup-benchmarks/lobsters/mysql/target/release/trawler-mysql \
                      --reqscale {} \
                      --warmup 20 \
                      --runtime 30 \
