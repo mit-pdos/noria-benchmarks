@@ -133,6 +133,7 @@ fn main() {
                     "cd lobsters && bash -c 'nohup \
                      env RUST_BACKTRACE=1 \
                      ../distributary/target/release/souplet \
+                     -v \
                      --deployment trawler \
                      --durability {} \
                      --no-reuse \
