@@ -150,9 +150,9 @@ fn main() {
             // start the shim (which will block until soup is available)
             trawler
                 .cmd(&format!(
-                    "cd lobsters && bash -c 'nohup \
+                    "bash -c 'nohup \
                      env RUST_BACKTRACE=1 \
-                     ../distributary-mysql/target/release/distributary-mysql \
+                     distributary-mysql/target/release/distributary-mysql \
                      --deployment trawler \
                      --no-sanitize --no-static-responses \
                      -z {}:2181 \
@@ -171,8 +171,8 @@ fn main() {
             eprintln!(" -> priming at {}", Local::now().time().format("%H:%M:%S"));
             trawler
                 .cmd(&format!(
-                    "cd lobsters && env RUST_BACKTRACE=1 \
-                     ../soup-benchmarks/lobsters/mysql/target/release/trawler-mysql \
+                    "env RUST_BACKTRACE=1 \
+                     soup-benchmarks/lobsters/mysql/target/release/trawler-mysql \
                      --warmup 0 \
                      --runtime 0 \
                      --issuers 24 \
@@ -191,8 +191,8 @@ fn main() {
             eprintln!(" -> warming at {}", Local::now().time().format("%H:%M:%S"));
             trawler
                 .cmd(&format!(
-                    "cd lobsters && env RUST_BACKTRACE=1 \
-                     ../soup-benchmarks/lobsters/mysql/target/release/trawler-mysql \
+                    "env RUST_BACKTRACE=1 \
+                     soup-benchmarks/lobsters/mysql/target/release/trawler-mysql \
                      --reqscale 3000 \
                      --warmup 120 \
                      --runtime 0 \
@@ -214,8 +214,8 @@ fn main() {
             let mut output = File::create(format!("{}.log", prefix)).unwrap();
             trawler
                 .cmd_raw(&format!(
-                    "cd lobsters && env RUST_BACKTRACE=1 \
-                     ../soup-benchmarks/lobsters/mysql/target/release/trawler-mysql \
+                    "env RUST_BACKTRACE=1 \
+                     soup-benchmarks/lobsters/mysql/target/release/trawler-mysql \
                      --reqscale {} \
                      --warmup 20 \
                      --runtime 30 \
