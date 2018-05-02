@@ -189,7 +189,7 @@ fn main() {
                 })
                 .unwrap();
 
-            thread::sleep(time::Duration::from_secs(5));
+            thread::sleep(time::Duration::from_secs(10));
             eprintln!(" -> warming at {}", Local::now().time().format("%H:%M:%S"));
             trawler
                 .cmd(&format!(
@@ -210,7 +210,7 @@ fn main() {
                 })
                 .unwrap();
 
-            thread::sleep(time::Duration::from_secs(5));
+            thread::sleep(time::Duration::from_secs(15));
             eprintln!(" -> started at {}", Local::now().time().format("%H:%M:%S"));
 
             let prefix = format!("lobsters-{}-{}", backend, scale);
