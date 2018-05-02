@@ -31,3 +31,8 @@ path = "src/main.rs"
 name = "trawler-mysql-ec2"
 path = "src/ec2.rs"
 required-features = ["orchestration"]
+
+[[bin]]
+name = "trawler-mysql-remote"
+path = "src/remote.rs"
+required-features = ["orchestration"]
