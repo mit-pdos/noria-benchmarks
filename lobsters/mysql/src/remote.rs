@@ -339,7 +339,7 @@ fn clear_state(server: &Session, trawler: &Session) {
 
     trawler
         .cmd(
-            "bash -c 'pkill -9 -f distributary-mysql && \
+            "bash -c 'pkill -9 -f distributary-mysql; \
              pkill -9 -f trawler-mysql 2>&1'",
         )
         .map(|out| {
