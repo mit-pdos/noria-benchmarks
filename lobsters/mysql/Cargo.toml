@@ -19,9 +19,13 @@ futures = "0.1"
 chrono = "0.4"
 
 failure = { version = "0.1.1", optional = true }
-tsunami = { version = "0.5.11", optional = true }
 rusoto_core = { version = "0.31", optional = true }
 rusoto_sts = { version = "0.31", optional = true }
+
+[dependencies.tsunami]
+git = "https://github.com/ekmartin/tsunami.git"
+rev = "5321870e3e3d26ac3409be6d4483911d6d23fe18"
+optional = true
 
 [[bin]]
 name = "trawler-mysql"
