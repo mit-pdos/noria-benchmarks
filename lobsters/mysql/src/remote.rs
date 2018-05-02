@@ -134,6 +134,7 @@ fn main() {
                      env RUST_BACKTRACE=1 \
                      ../distributary/target/release/souplet \
                      -v \
+                     --log-dir /flash/soup/lobsters \
                      --deployment trawler \
                      --durability {} \
                      --no-reuse \
@@ -166,7 +167,7 @@ fn main() {
             eprintln!(" -> started the shim");
 
             // give soup a chance to start
-            thread::sleep(time::Duration::from_secs(5));
+            thread::sleep(time::Duration::from_secs(10));
 
             // run priming
             eprintln!(" -> priming at {}", Local::now().time().format("%H:%M:%S"));
@@ -189,7 +190,7 @@ fn main() {
                 })
                 .unwrap();
 
-            thread::sleep(time::Duration::from_secs(10));
+            thread::sleep(time::Duration::from_secs(15));
             eprintln!(" -> warming at {}", Local::now().time().format("%H:%M:%S"));
             trawler
                 .cmd(&format!(
