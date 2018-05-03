@@ -33,25 +33,24 @@ impl fmt::Display for Backend {
     }
 }
 
-fn git_and_cargo(ssh: &mut Session, dir: &str, bin: &str) -> Result<(), failure::Error> {
+fn git_and_cargo(
+    ssh: &mut Session,
+    dir: &str,
+    bin: &str,
+    branch: Option<&str>,
+) -> Result<(), failure::Error> {
+    let branch = branch.unwrap_or("master");
     if dir != "distributary" {
-        eprintln!(" -> git reset");
-        ssh.cmd(&format!("bash -c 'git -C {} reset --hard 2>&1'", dir))
-            .map(|out| {
-                let out = out.trim_right();
-                if !out.is_empty() && !out.contains("Already up-to-date.") {
-                    eprintln!("{}", out);
-                }
-            })?;
-
-        eprintln!(" -> git update");
-        ssh.cmd(&format!("bash -c 'git -C {} pull 2>&1'", dir))
-            .map(|out| {
-                let out = out.trim_right();
-                if !out.is_empty() && !out.contains("Already up-to-date.") {
-                    eprintln!("{}", out);
-                }
-            })?;
+        eprintln!(" -> git fetch && reset");
+        ssh.cmd(&format!(
+            "bash -c 'git -C {} fetch && git -C {} reset --hard origin/{} 2>&1'",
+            dir, dir, branch
+        )).map(|out| {
+            let out = out.trim_right();
+            if !out.is_empty() && !out.contains("Already up-to-date.") {
+                eprintln!("{}", out);
+            }
+        })?;
     }
 
     eprintln!(" -> rebuild");
@@ -102,11 +101,23 @@ fn main() {
         1,
         MachineSetup::new("m5.12xlarge", AMI, |ssh| {
             eprintln!("==> setting up trawler");
-            git_and_cargo(ssh, "benchmarks/lobsters/mysql", "trawler-mysql")?;
+            git_and_cargo(ssh, "benchmarks/lobsters/mysql", "trawler-mysql", None)?;
             eprintln!("==> setting up trawler w/ soup hacks");
-            git_and_cargo(ssh, "benchmarks-soup/lobsters/mysql", "trawler-mysql")?;
+            git_and_cargo(
+                ssh,
+                "benchmarks-soup/lobsters/mysql",
+                "trawler-mysql",
+                Some("hacks-for-soup-evict"),
+            )?;
+            eprintln!("==> setting up trawler w/ soupy");
+            git_and_cargo(
+                ssh,
+                "benchmarks-soupy/lobsters/mysql",
+                "trawler-mysql",
+                Some("soupy-evict"),
+            )?;
             eprintln!("==> setting up shim");
-            git_and_cargo(ssh, "shim", "distributary-mysql")?;
+            git_and_cargo(ssh, "shim", "distributary-mysql", None)?;
             Ok(())
         }).as_user("ubuntu"),
     );
@@ -115,9 +126,9 @@ fn main() {
         1,
         MachineSetup::new("c5.4xlarge", AMI, |ssh| {
             eprintln!("==> setting up souplet");
-            git_and_cargo(ssh, "distributary", "souplet")?;
+            git_and_cargo(ssh, "distributary", "souplet", None)?;
             eprintln!("==> setting up zk-util");
-            git_and_cargo(ssh, "distributary/consensus", "zk-util")?;
+            git_and_cargo(ssh, "distributary/consensus", "zk-util", None)?;
             Ok(())
         }).as_user("ubuntu"),
     );
@@ -362,6 +373,36 @@ fn main() {
                             eprintln!(" -> priming finished...\n{}", out);
                         }
                     })?;
+
+                if memlimit.is_some() {
+                    eprintln!(
+                        " -> running uniform at {}",
+                        Local::now().time().format("%H:%M:%S")
+                    );
+
+                    trawler
+                        .ssh
+                        .as_mut()
+                        .unwrap()
+                        .cmd(&format!(
+                            "env RUST_BACKTRACE=1 \
+                             {}/lobsters/mysql/target/release/trawler-mysql \
+                             --uniform \
+                             --reqscale 3000 \
+                             --memscale {} \
+                             --warmup 300 \
+                             --runtime 0 \
+                             --issuers 24 \
+                             \"mysql://lobsters:$(cat ~/mysql.pass)@{}/lobsters\"",
+                            dir, memscale, ip
+                        ))
+                        .map(|out| {
+                            let out = out.trim_right();
+                            if !out.is_empty() {
+                                eprintln!(" -> uniform finished...\n{}", out);
+                            }
+                        })?;
+                }
 
                 eprintln!(" -> warming at {}", Local::now().time().format("%H:%M:%S"));
 
