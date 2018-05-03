@@ -13,13 +13,14 @@ use std::io::BufReader;
 use std::{fmt, thread, time};
 use tsunami::*;
 
-const AMI: &str = "ami-fa7ac685";
+const AMI: &str = "ami-7342f90c";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 enum Backend {
     Mysql,
     Soup,
     Soupy,
+    SoupyRocks,
 }
 
 impl fmt::Display for Backend {
@@ -28,6 +29,7 @@ impl fmt::Display for Backend {
             Backend::Mysql => write!(f, "mysql"),
             Backend::Soup => write!(f, "soup"),
             Backend::Soupy => write!(f, "soupy"),
+            Backend::SoupyRocks => write!(f, "soupy_rocks"),
         }
     }
 }
@@ -132,8 +134,8 @@ fn main() {
         .map(|it| Box::new(it.map(|s| s.parse().unwrap())) as Box<_>)
         .unwrap_or(Box::new(
             [
-                100, 200, 400, 800, 1000usize, 1250, 1500, 2000, 3000, 4000, 4500, 5000, 5500,
-                6000, 6500, 7000, 8000, 8500, 9000,
+                100usize, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 5500, 6000, 6500, 7000, 7500,
+                8000, 8500, 9000, 9500, 10_000,
             ].into_iter()
                 .map(|&s| s),
         ) as Box<_>);
@@ -158,7 +160,13 @@ fn main() {
         let mut server = vms.remove("server").unwrap().swap_remove(0);
         let mut trawler = vms.remove("trawler").unwrap().swap_remove(0);
 
-        let backends = [Backend::Mysql, Backend::Soup, Backend::Soupy];
+        let backends = [
+            Backend::Mysql,
+            Backend::Soup,
+            Backend::Soupy,
+            Backend::SoupyRocks,
+        ];
+
         let mut survived_last: HashMap<_, _> = backends.iter().map(|b| (b, true)).collect();
 
         // allow reuse of time-wait ports
@@ -177,15 +185,27 @@ fn main() {
                 eprintln!("==> benchmark {} w/ {}x load", backend, scale);
 
                 match backend {
+                    Backend::Mysql | Backend::SoupyRocks => {
+                        server.ssh.as_mut().unwrap().cmd("sudo rm -rf /mnt/*")?;
+
+                        server
+                            .ssh
+                            .as_mut()
+                            .unwrap()
+                            .cmd("sudo mount -t tmpfs -o size=16G tmpfs /mnt")?;
+                    }
+                    _ => {}
+                };
+
+                match backend {
                     Backend::Mysql => {
                         let ssh = server.ssh.as_mut().unwrap();
-                        ssh.cmd("sudo mount -t tmpfs -o size=16G tmpfs /mnt")?;
                         // sudo rm -rf /var/lib/mysql
                         ssh.cmd("sudo cp -r /var/lib/mysql.clean /mnt/mysql")?;
                         // sudo ln -s /mnt/mysql /var/lib/mysql
                         ssh.cmd("sudo chown -R mysql:mysql /var/lib/mysql/")?;
                     }
-                    Backend::Soup | Backend::Soupy => {
+                    Backend::Soup | Backend::Soupy | Backend::SoupyRocks => {
                         // just to make totally sure
                         server
                             .ssh
@@ -216,7 +236,7 @@ fn main() {
                             .as_mut()
                             .unwrap()
                             .cmd(
-                                "distributary/target/release/zk-util \
+                                "~/distributary/target/release/zk-util \
                                  --clean --deployment trawler",
                             )
                             .map(|out| {
@@ -243,23 +263,36 @@ fn main() {
                                 eprintln!(" -> started mysql...\n{}", out);
                             }
                         })?,
-                    Backend::Soup | Backend::Soupy => {
+                    Backend::Soup | Backend::Soupy | Backend::SoupyRocks => {
+                        let durability = match backend {
+                            Backend::Soup | Backend::Soupy => "memory",
+                            Backend::SoupyRocks => "ephemeral",
+                            _ => unreachable!(),
+                        };
+
+                        let pre = if *backend == Backend::SoupyRocks {
+                            "cd /mnt &&"
+                        } else {
+                            ""
+                        };
+
                         server
                             .ssh
                             .as_mut()
                             .unwrap()
                             .cmd(&format!(
-                                "bash -c 'nohup \
+                                "bash -c '{} nohup \
                                  env RUST_BACKTRACE=1 \
-                                 distributary/target/release/souplet \
+                                 ~/distributary/target/release/souplet \
                                  --deployment trawler \
-                                 --durability memory \
+                                 --durability {} \
                                  --no-reuse \
                                  --address {} \
-                                 --readers 12 -w 4 \
+                                 --persistence-threads 8 \
+                                 --readers 60 -w 10 \
                                  --shards 0 \
                                  &> souplet.log &'",
-                                server.private_ip,
+                                pre, durability, server.private_ip,
                             ))
                             .map(|_| ())?;
 
@@ -271,7 +304,7 @@ fn main() {
                             .cmd(&format!(
                                 "bash -c 'nohup \
                                  env RUST_BACKTRACE=1 \
-                                 shim/target/release/distributary-mysql \
+                                 ~/shim/target/release/distributary-mysql \
                                  --deployment trawler \
                                  --no-sanitize --no-static-responses \
                                  -z {}:2181 \
@@ -293,12 +326,12 @@ fn main() {
                 let dir = match backend {
                     Backend::Mysql => "benchmarks",
                     Backend::Soup => "benchmarks-soup",
-                    Backend::Soupy => "benchmarks-soupy",
+                    Backend::Soupy | Backend::SoupyRocks => "benchmarks-soupy",
                 };
 
                 let ip = match backend {
                     Backend::Mysql => &*server.private_ip,
-                    Backend::Soup | Backend::Soupy => "127.0.0.1",
+                    _ => "127.0.0.1",
                 };
 
                 trawler
@@ -307,7 +340,7 @@ fn main() {
                     .unwrap()
                     .cmd(&format!(
                         "env RUST_BACKTRACE=1 \
-                         {}/lobsters/mysql/target/release/trawler-mysql \
+                         ~/{}/lobsters/mysql/target/release/trawler-mysql \
                          --warmup 0 \
                          --runtime 0 \
                          --issuers 24 \
@@ -330,7 +363,7 @@ fn main() {
                     .unwrap()
                     .cmd(&format!(
                         "env RUST_BACKTRACE=1 \
-                         {}/lobsters/mysql/target/release/trawler-mysql \
+                         ~/{}/lobsters/mysql/target/release/trawler-mysql \
                          --reqscale 3000 \
                          --warmup 120 \
                          --runtime 0 \
@@ -355,7 +388,7 @@ fn main() {
                     .unwrap()
                     .cmd_raw(&format!(
                         "env RUST_BACKTRACE=1 \
-                         {}/lobsters/mysql/target/release/trawler-mysql \
+                         ~/{}/lobsters/mysql/target/release/trawler-mysql \
                          --reqscale {} \
                          --warmup 20 \
                          --runtime 30 \
@@ -415,7 +448,7 @@ fn main() {
                             })?;
                         server.ssh.as_mut().unwrap().cmd("sudo umount /mnt")?;
                     }
-                    Backend::Soup | Backend::Soupy => {
+                    Backend::Soup | Backend::Soupy | Backend::SoupyRocks => {
                         server
                             .ssh
                             .as_mut()
