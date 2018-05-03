@@ -278,6 +278,11 @@ fn main() {
                 .help("Set if the backend must be primed with initial stories and comments."),
         )
         .arg(
+            Arg::with_name("uniform")
+                .long("uniform")
+                .help("Pick IDs based on a uniform distribution"),
+        )
+        .arg(
             Arg::with_name("runtime")
                 .short("r")
                 .long("runtime")
@@ -356,5 +361,5 @@ fn main() {
             .unwrap();
     }
 
-    wl.run::<MysqlTrawler, _>(s, args.is_present("prime"));
+    wl.run::<MysqlTrawler, _>(s, args.is_present("prime"), args.is_present("uniform"));
 }
