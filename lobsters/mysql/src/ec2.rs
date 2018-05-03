@@ -55,7 +55,7 @@ fn git_and_cargo(ssh: &mut Session, dir: &str, bin: &str) -> Result<(), failure:
             })?;
     }
 
-    eprintln!(" -> rebuild");
+    eprintln!(" -> rebuilding {} in {}", bin, dir);
     ssh.cmd(&format!(
         "bash -c 'cd {} && cargo b --release --bin {} 2>&1'",
         dir, bin
@@ -295,6 +295,8 @@ fn main() {
                                 pre, durability, server.private_ip,
                             ))
                             .map(|_| ())?;
+
+                        eprintln!("-> initialized souplet");
 
                         // start the shim (which will block until soup is available)
                         trawler
