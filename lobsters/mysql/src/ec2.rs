@@ -287,7 +287,7 @@ fn main() {
                                  --no-reuse \
                                  --address {} \
                                  --persistence-threads 8 \
-                                 --readers 60 -w 10 \
+                                 --readers 60 -w 4 \
                                  --shards 0 \
                                  &> souplet.log &'",
                                 pre, durability, server.private_ip,
