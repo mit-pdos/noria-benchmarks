@@ -40,18 +40,16 @@ fn git_and_cargo(
     branch: Option<&str>,
 ) -> Result<(), failure::Error> {
     let branch = branch.unwrap_or("master");
-    if dir != "distributary" {
-        eprintln!(" -> git fetch && reset");
-        ssh.cmd(&format!(
-            "bash -c 'git -C {} fetch && git -C {} reset --hard origin/{} 2>&1'",
-            dir, dir, branch
-        )).map(|out| {
-            let out = out.trim_right();
-            if !out.is_empty() && !out.contains("Already up-to-date.") {
-                eprintln!("{}", out);
-            }
-        })?;
-    }
+    eprintln!(" -> git fetch && reset");
+    ssh.cmd(&format!(
+        "bash -c 'git -C {} fetch && git -C {} reset --hard origin/{} 2>&1'",
+        dir, dir, branch
+    )).map(|out| {
+        let out = out.trim_right();
+        if !out.is_empty() && !out.contains("Already up-to-date.") {
+            eprintln!("{}", out);
+        }
+    })?;
 
     eprintln!(" -> rebuild");
     ssh.cmd(&format!(
@@ -126,7 +124,7 @@ fn main() {
         1,
         MachineSetup::new("c5.4xlarge", AMI, |ssh| {
             eprintln!("==> setting up souplet");
-            git_and_cargo(ssh, "distributary", "souplet", None)?;
+            git_and_cargo(ssh, "distributary", "souplet", Some("evict_debugging"))?;
             eprintln!("==> setting up zk-util");
             git_and_cargo(ssh, "distributary/consensus", "zk-util", None)?;
             Ok(())
@@ -299,6 +297,7 @@ fn main() {
                             "bash -c 'nohup \
                              env RUST_BACKTRACE=1 \
                              distributary/target/release/souplet \
+                             -v \
                              --deployment trawler \
                              --durability memory \
                              --no-reuse \
