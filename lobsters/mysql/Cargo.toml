@@ -11,7 +11,7 @@ default = []
 debug = true
 
 [dependencies]
-trawler = "0.5.10"
+trawler = { git = "https://github.com/ekmartin/trawler.git", rev = "dd568c75649b0aed812253d4d8e62a08d5e51c3b" }
 mysql_async = "0.14"
 tokio-core = "0.1"
 clap = "2.31"
