@@ -35,25 +35,23 @@ impl fmt::Display for Backend {
 }
 
 fn git_and_cargo(ssh: &mut Session, dir: &str, bin: &str) -> Result<(), failure::Error> {
-    if dir != "distributary" {
-        eprintln!(" -> git reset");
-        ssh.cmd(&format!("bash -c 'git -C {} reset --hard 2>&1'", dir))
-            .map(|out| {
-                let out = out.trim_right();
-                if !out.is_empty() && !out.contains("Already up-to-date.") {
-                    eprintln!("{}", out);
-                }
-            })?;
+    eprintln!(" -> git reset");
+    ssh.cmd(&format!("bash -c 'git -C {} reset --hard 2>&1'", dir))
+        .map(|out| {
+            let out = out.trim_right();
+            if !out.is_empty() && !out.contains("Already up-to-date.") {
+                eprintln!("{}", out);
+            }
+        })?;
 
-        eprintln!(" -> git update");
-        ssh.cmd(&format!("bash -c 'git -C {} pull 2>&1'", dir))
-            .map(|out| {
-                let out = out.trim_right();
-                if !out.is_empty() && !out.contains("Already up-to-date.") {
-                    eprintln!("{}", out);
-                }
-            })?;
-    }
+    eprintln!(" -> git update");
+    ssh.cmd(&format!("bash -c 'git -C {} pull 2>&1'", dir))
+        .map(|out| {
+            let out = out.trim_right();
+            if !out.is_empty() && !out.contains("Already up-to-date.") {
+                eprintln!("{}", out);
+            }
+        })?;
 
     eprintln!(" -> rebuilding {} in {}", bin, dir);
     ssh.cmd(&format!(
@@ -281,7 +279,7 @@ fn main() {
                             .as_mut()
                             .unwrap()
                             .cmd(&format!(
-                                "bash -c '{} nohup \
+                                "{} bash -c 'nohup \
                                  env RUST_BACKTRACE=1 \
                                  ~/distributary/target/release/souplet \
                                  --deployment trawler \
